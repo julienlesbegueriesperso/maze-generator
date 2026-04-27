@@ -8,3 +8,7 @@ dependencies = [
     "pillow>=12.2.0",
     "pydantic>=2.13.3",
 ]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["models*", "generator*"]
