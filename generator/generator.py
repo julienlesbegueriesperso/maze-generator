@@ -1,5 +1,5 @@
 import random
-from typing import Set, Tuple
+from typing import Optional, Set, Tuple
 
 from models.maze import Direction, Frontier, Maze
 
@@ -9,7 +9,7 @@ class MazeGenerator:
         self.rows = rows
         self.cols = cols
 
-    def generate(self) -> Maze:
+    def generate(self, with_start_end: bool = False) -> Maze:
         maze = Maze.create_empty(self.rows, self.cols)
         visited: Set[Tuple[int, int]] = set()
 
@@ -18,7 +18,19 @@ class MazeGenerator:
         if not maze.all_corners_connected():
             self._ensure_corner_connectivity(maze)
 
+        if with_start_end:
+            self._assign_start_end(maze)
+
         return maze
+
+    def _assign_start_end(self, maze: Maze) -> None:
+        diagonal_pairs = [
+            ((0, 0), (self.rows - 1, self.cols - 1)),
+            ((0, self.cols - 1), (self.rows - 1, 0)),
+        ]
+        start, end = random.choice(diagonal_pairs)
+        maze.start = start
+        maze.end = end
 
     def _dfs_generate(
         self, maze: Maze, row: int, col: int, visited: Set[Tuple[int, int]]

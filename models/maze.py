@@ -1,4 +1,5 @@
 import json
+from collections import deque
 from enum import Enum
 from typing import Dict, List, Optional, Set, Tuple
 
@@ -44,10 +45,20 @@ class Cell(BaseModel):
         return self.get_frontier(direction) == Frontier.OPEN
 
 
+class MazeSolution:
+    def __init__(self, path: List[Tuple[int, int]]):
+        self.path = path
+
+    def __repr__(self) -> str:
+        return f"MazeSolution(path={self.path})"
+
+
 class Maze(BaseModel):
     cells: List[List[Cell]] = Field(default_factory=list)
     nb_rows: int = 0
     nb_cols: int = 0
+    start: Optional[Tuple[int, int]] = None
+    end: Optional[Tuple[int, int]] = None
 
     @field_validator("cells", mode="before")
     @classmethod
@@ -84,7 +95,6 @@ class Maze(BaseModel):
         }
 
     def all_corners_connected(self) -> bool:
-        # corners = self.get_corner_cells()
         visited: Set[Tuple[int, int]] = set()
         start = (0, 0)
         queue = [start]
@@ -113,6 +123,33 @@ class Maze(BaseModel):
         }
         return corner_coords.issubset(visited)
 
+    def find_path(self) -> Optional[MazeSolution]:
+        if not self.start or not self.end:
+            return None
+
+        queue = deque([(self.start, [self.start])])
+        visited: Set[Tuple[int, int]] = {self.start}
+
+        while queue:
+            current, path = queue.popleft()
+
+            if current == self.end:
+                return MazeSolution(path)
+
+            row, col = current
+            cell = self.get_cell(row, col)
+            if not cell:
+                continue
+
+            for direction, neighbor in self.get_neighbors(cell).items():
+                if neighbor and cell.has_passage_to(direction):
+                    neighbor_pos = (neighbor.row, neighbor.col)
+                    if neighbor_pos not in visited:
+                        visited.add(neighbor_pos)
+                        queue.append((neighbor_pos, path + [neighbor_pos]))
+
+        return None
+
     def to_json(self) -> str:
         cells_list = [cell for row in self.cells for cell in row]
         return json.dumps(
@@ -120,12 +157,17 @@ class Maze(BaseModel):
                 "cells": [cell.model_dump() for cell in cells_list],
                 "nb_rows": self.nb_rows,
                 "nb_cols": self.nb_cols,
+                "start": self.start,
+                "end": self.end,
             },
             indent=2,
         )
 
     def to_ascii(self) -> str:
         lines = []
+        corners = self.get_corner_cells()
+        start_marker = "S" if self.start else ""
+        end_marker = "E" if self.end else ""
 
         for row in range(self.nb_rows):
             top_line = ""
